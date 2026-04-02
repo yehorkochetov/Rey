@@ -5,6 +5,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/sts"
 	"github.com/spf13/viper"
 )
 
@@ -29,5 +30,15 @@ func NewSession(ctx context.Context) (aws.Config, error) {
 		opts = append(opts, config.WithSharedConfigProfile(profile))
 	}
 
-	return config.LoadDefaultConfig(ctx, opts...)
+	cfg, err := config.LoadDefaultConfig(ctx, opts...)
+	if err != nil {
+		return cfg, err
+	}
+
+	stsClient := sts.NewFromConfig(cfg)
+	if _, err := stsClient.GetCallerIdentity(ctx, &sts.GetCallerIdentityInput{}); err != nil {
+		return cfg, err
+	}
+
+	return cfg, nil
 }
