@@ -3,6 +3,8 @@ package aws
 import (
 	"context"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -29,6 +31,9 @@ func NewSession(ctx context.Context) (aws.Config, error) {
 	}
 
 	if profile := viper.GetString("profile"); profile != "" {
+		if !profileExists(profile) {
+			return aws.Config{}, fmt.Errorf("profile '%s' not found in ~/.aws/config", profile)
+		}
 		opts = append(opts, config.WithSharedConfigProfile(profile))
 	}
 
@@ -43,6 +48,25 @@ func NewSession(ctx context.Context) (aws.Config, error) {
 	}
 
 	return cfg, nil
+}
+
+func profileExists(profile string) bool {
+	home, _ := os.UserHomeDir()
+	for _, path := range []string{
+		filepath.Join(home, ".aws", "config"),
+		filepath.Join(home, ".aws", "credentials"),
+	} {
+		data, err := os.ReadFile(path)
+		if err != nil {
+			continue
+		}
+		content := string(data)
+		if strings.Contains(content, "[profile "+profile+"]") ||
+			strings.Contains(content, "["+profile+"]") {
+			return true
+		}
+	}
+	return false
 }
 
 func wrapConfigError(err error) error {
@@ -65,7 +89,12 @@ func wrapSTSError(err error) error {
 		return fmt.Errorf("AWS credentials not found. Run 'aws configure'")
 	}
 
-	if strings.Contains(msg, "ExpiredToken") || strings.Contains(msg, "expired") {
+	if strings.Contains(msg, "InvalidClientTokenId") ||
+		strings.Contains(msg, "SignatureDoesNotMatch") {
+		return fmt.Errorf("AWS credentials are invalid. Check your access key and secret in 'aws configure'")
+	}
+
+	if strings.Contains(msg, "ExpiredToken") || strings.Contains(msg, "ExpiredTokenException") {
 		return fmt.Errorf("AWS session token expired, please refresh")
 	}
 
