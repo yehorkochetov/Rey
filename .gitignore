@@ -1,0 +1,17 @@
+# Binary
+rey
+
+# IDE
+.idea/
+.vscode/
+
+# AI tools
+.claude/
+docs/superpowers/
+
+# OS
+.DS_Store
+
+# Environment
+.env
+.env.*
