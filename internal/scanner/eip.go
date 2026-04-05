@@ -48,5 +48,5 @@ func (e *EIPScanner) Scan(ctx context.Context, cfg aws.Config) ([]DeadResource, 
 }
 
 func (e *EIPScanner) EstimateCost(r DeadResource) float64 {
-	return 0
+	return 3.60
 }
