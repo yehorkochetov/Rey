@@ -21,13 +21,24 @@ var digCmd = &cobra.Command{
 		}
 
 		reg := &scanner.Registry{}
+		reg.Register(&scanner.EIPScanner{})
+
 		results, err := reg.RunAll(cmd.Context(), cfg)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "Error:", err)
 			os.Exit(1)
 		}
 
-		fmt.Printf("Found %d resources\n", len(results))
+		if len(results) == 0 {
+			fmt.Println("No unused resources found.")
+			return
+		}
+
+		fmt.Printf("Found %d unused resource(s):\n\n", len(results))
+		for _, r := range results {
+			fmt.Printf("  %-12s %-24s %-14s $%.2f/mo\n", r.Type, r.ID, r.Region, r.MonthlyCost)
+			fmt.Printf("             %s\n\n", r.Reason)
+		}
 	},
 }
 
