@@ -15,9 +15,16 @@ var (
 	highCost    = lipgloss.NewStyle().Foreground(lipgloss.Color("9"))  // bright red
 	medCost     = lipgloss.NewStyle().Foreground(lipgloss.Color("11")) // bright yellow
 	defaultCost = lipgloss.NewStyle()
+	footerStyle = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("10")) // bright green
+	emptyStyle  = lipgloss.NewStyle().Faint(true).Italic(true)
 )
 
 func RenderGraveyard(resources []scanner.DeadResource) {
+	if len(resources) == 0 {
+		fmt.Println(emptyStyle.Render("No wasted resources found in this region"))
+		return
+	}
+
 	table := tablewriter.NewWriter(os.Stdout)
 	table.Header(
 		headerStyle.Render("Type"),
@@ -27,6 +34,7 @@ func RenderGraveyard(resources []scanner.DeadResource) {
 		headerStyle.Render("Monthly Cost"),
 	)
 
+	var total float64
 	for _, r := range resources {
 		style := costStyle(r.MonthlyCost)
 		table.Append([]string{
@@ -36,9 +44,14 @@ func RenderGraveyard(resources []scanner.DeadResource) {
 			style.Render(formatAge(r.Age)),
 			style.Render(fmt.Sprintf("$%.2f/mo", r.MonthlyCost)),
 		})
+		total += r.MonthlyCost
 	}
 
 	table.Render()
+
+	fmt.Println(footerStyle.Render(
+		fmt.Sprintf("Found %d resources wasting $%.2f/month", len(resources), total),
+	))
 }
 
 func costStyle(cost float64) lipgloss.Style {
