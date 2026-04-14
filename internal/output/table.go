@@ -10,7 +10,12 @@ import (
 	"github.com/yehorkochetov/rey/internal/scanner"
 )
 
-var headerStyle = lipgloss.NewStyle().Bold(true)
+var (
+	headerStyle = lipgloss.NewStyle().Bold(true)
+	highCost    = lipgloss.NewStyle().Foreground(lipgloss.Color("9"))  // bright red
+	medCost     = lipgloss.NewStyle().Foreground(lipgloss.Color("11")) // bright yellow
+	defaultCost = lipgloss.NewStyle()
+)
 
 func RenderGraveyard(resources []scanner.DeadResource) {
 	table := tablewriter.NewWriter(os.Stdout)
@@ -23,16 +28,28 @@ func RenderGraveyard(resources []scanner.DeadResource) {
 	)
 
 	for _, r := range resources {
+		style := costStyle(r.MonthlyCost)
 		table.Append([]string{
-			r.Type,
-			nameOrID(r),
-			r.Region,
-			formatAge(r.Age),
-			fmt.Sprintf("$%.2f/mo", r.MonthlyCost),
+			style.Render(r.Type),
+			style.Render(nameOrID(r)),
+			style.Render(r.Region),
+			style.Render(formatAge(r.Age)),
+			style.Render(fmt.Sprintf("$%.2f/mo", r.MonthlyCost)),
 		})
 	}
 
 	table.Render()
+}
+
+func costStyle(cost float64) lipgloss.Style {
+	switch {
+	case cost > 10:
+		return highCost
+	case cost > 1:
+		return medCost
+	default:
+		return defaultCost
+	}
 }
 
 func nameOrID(r scanner.DeadResource) string {
