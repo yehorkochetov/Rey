@@ -11,8 +11,7 @@ import (
 )
 
 var (
-	headerStyle = lipgloss.NewStyle().Bold(true)
-	highCost    = lipgloss.NewStyle().Foreground(lipgloss.Color("9"))  // bright red
+	highCost = lipgloss.NewStyle().Foreground(lipgloss.Color("9")) // bright red
 	medCost     = lipgloss.NewStyle().Foreground(lipgloss.Color("11")) // bright yellow
 	defaultCost = lipgloss.NewStyle()
 	footerStyle = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("10")) // bright green
@@ -26,13 +25,7 @@ func RenderGraveyard(resources []scanner.DeadResource) {
 	}
 
 	table := tablewriter.NewWriter(os.Stdout)
-	table.Header(
-		headerStyle.Render("Type"),
-		headerStyle.Render("Name/ID"),
-		headerStyle.Render("Region"),
-		headerStyle.Render("Age"),
-		headerStyle.Render("Monthly Cost"),
-	)
+	table.Header([]string{"Type", "Name/ID", "Region", "Age", "Monthly Cost"})
 
 	var total float64
 	for _, r := range resources {
