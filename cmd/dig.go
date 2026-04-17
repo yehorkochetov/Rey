@@ -6,6 +6,7 @@ import (
 
 	"github.com/spf13/cobra"
 	reyaws "github.com/yehorkochetov/rey/internal/aws"
+	"github.com/yehorkochetov/rey/internal/output"
 	"github.com/yehorkochetov/rey/internal/scanner"
 )
 
@@ -29,16 +30,7 @@ var digCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		if len(results) == 0 {
-			fmt.Println("No unused resources found.")
-			return
-		}
-
-		fmt.Printf("Found %d unused resource(s):\n\n", len(results))
-		for _, r := range results {
-			fmt.Printf("  %-12s %-24s %-14s $%.2f/mo\n", r.Type, r.ID, r.Region, r.MonthlyCost)
-			fmt.Printf("             %s\n\n", r.Reason)
-		}
+		output.RenderGraveyard(results)
 	},
 }
 
