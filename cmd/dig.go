@@ -28,6 +28,7 @@ var digCmd = &cobra.Command{
 		reg := &scanner.Registry{}
 		reg.Register(&scanner.EIPScanner{})
 		reg.Register(&scanner.EC2Scanner{MinAge: minAge})
+		reg.Register(&scanner.EBSScanner{MinAge: minAge})
 
 		results, err := reg.RunAll(cmd.Context(), cfg)
 		if err != nil {
