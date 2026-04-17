@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/spf13/cobra"
 	reyaws "github.com/yehorkochetov/rey/internal/aws"
@@ -21,8 +22,18 @@ var digCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
+		minAgeDays, _ := cmd.Flags().GetInt("min-age")
+		minAge := time.Duration(minAgeDays) * 24 * time.Hour
+
 		reg := &scanner.Registry{}
-		reg.Register(&scanner.EIPScanner{})
+		for _, s := range []scanner.Scanner{
+			&scanner.EIPScanner{},
+			&scanner.EC2Scanner{MinAge: minAge},
+			&scanner.EBSScanner{},
+			&scanner.SnapshotScanner{},
+		} {
+			reg.Register(s)
+		}
 
 		results, err := reg.RunAll(cmd.Context(), cfg)
 		if err != nil {
