@@ -26,10 +26,14 @@ var digCmd = &cobra.Command{
 		minAge := time.Duration(minAgeDays) * 24 * time.Hour
 
 		reg := &scanner.Registry{}
-		reg.Register(&scanner.EIPScanner{})
-		reg.Register(&scanner.EC2Scanner{MinAge: minAge})
-		reg.Register(&scanner.EBSScanner{MinAge: minAge})
-		reg.Register(&scanner.SnapshotScanner{})
+		for _, s := range []scanner.Scanner{
+			&scanner.EIPScanner{},
+			&scanner.EC2Scanner{MinAge: minAge},
+			&scanner.EBSScanner{MinAge: minAge},
+			&scanner.SnapshotScanner{},
+		} {
+			reg.Register(s)
+		}
 
 		results, err := reg.RunAll(cmd.Context(), cfg)
 		if err != nil {
