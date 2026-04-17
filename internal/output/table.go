@@ -3,6 +3,7 @@ package output
 import (
 	"fmt"
 	"os"
+	"sort"
 	"time"
 
 	"github.com/charmbracelet/lipgloss"
@@ -24,11 +25,17 @@ func RenderGraveyard(resources []scanner.DeadResource) {
 		return
 	}
 
+	sorted := make([]scanner.DeadResource, len(resources))
+	copy(sorted, resources)
+	sort.SliceStable(sorted, func(i, j int) bool {
+		return sorted[i].Type < sorted[j].Type
+	})
+
 	table := tablewriter.NewWriter(os.Stdout)
 	table.Header([]string{"Type", "Name/ID", "Region", "Age", "Monthly Cost"})
 
 	var total float64
-	for _, r := range resources {
+	for _, r := range sorted {
 		style := costStyle(r.MonthlyCost)
 		table.Append([]string{
 			style.Render(r.Type),
