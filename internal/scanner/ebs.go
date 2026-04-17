@@ -10,9 +10,7 @@ import (
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 )
 
-type EBSScanner struct {
-	MinAge time.Duration
-}
+type EBSScanner struct{}
 
 func (e *EBSScanner) Name() string {
 	return "ebs-volume"
@@ -36,12 +34,9 @@ func (e *EBSScanner) Scan(ctx context.Context, cfg aws.Config) ([]DeadResource, 
 	var results []DeadResource
 	now := time.Now().UTC()
 	for _, v := range out.Volumes {
-		if v.CreateTime == nil {
-			continue
-		}
-		age := now.Sub(*v.CreateTime)
-		if age < e.MinAge {
-			continue
+		var age time.Duration
+		if v.CreateTime != nil {
+			age = now.Sub(*v.CreateTime)
 		}
 
 		tags := make(map[string]string)
@@ -62,7 +57,11 @@ func (e *EBSScanner) Scan(ctx context.Context, cfg aws.Config) ([]DeadResource, 
 		if v.Size != nil {
 			size = *v.Size
 		}
-		days := int(age.Hours() / 24)
+
+		reason := "Unattached"
+		if age > 0 {
+			reason = fmt.Sprintf("Unattached for %d days", int(age.Hours()/24))
+		}
 
 		results = append(results, DeadResource{
 			Type:        "EBSVolume",
@@ -71,7 +70,7 @@ func (e *EBSScanner) Scan(ctx context.Context, cfg aws.Config) ([]DeadResource, 
 			Region:      cfg.Region,
 			Age:         age,
 			MonthlyCost: float64(size) * 0.10,
-			Reason:      fmt.Sprintf("Unattached for %d days", days),
+			Reason:      reason,
 			Tags:        tags,
 		})
 	}

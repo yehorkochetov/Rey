@@ -29,7 +29,7 @@ var digCmd = &cobra.Command{
 		for _, s := range []scanner.Scanner{
 			&scanner.EIPScanner{},
 			&scanner.EC2Scanner{MinAge: minAge},
-			&scanner.EBSScanner{MinAge: minAge},
+			&scanner.EBSScanner{},
 			&scanner.SnapshotScanner{},
 		} {
 			reg.Register(s)
