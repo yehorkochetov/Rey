@@ -31,6 +31,11 @@ var digCmd = &cobra.Command{
 			&scanner.EC2Scanner{MinAge: minAge},
 			&scanner.EBSScanner{},
 			&scanner.SnapshotScanner{},
+			&scanner.SecurityGroupScanner{},
+			&scanner.ENIScanner{},
+			&scanner.IGWScanner{},
+			&scanner.NATGatewayScanner{},
+			&scanner.VPCEndpointScanner{},
 		} {
 			reg.Register(s)
 		}
