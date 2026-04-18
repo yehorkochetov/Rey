@@ -13,20 +13,19 @@ import (
 	"github.com/yehorkochetov/rey/internal/config"
 )
 
-const efsIdleWindow = 7 * 24 * time.Hour
-
 type EFSScanner struct{}
 
 func (e *EFSScanner) Name() string {
 	return "efs"
 }
 
-func (e *EFSScanner) Scan(ctx context.Context, cfg aws.Config, _ config.Thresholds) ([]DeadResource, error) {
+func (e *EFSScanner) Scan(ctx context.Context, cfg aws.Config, t config.Thresholds) ([]DeadResource, error) {
 	efsClient := efs.NewFromConfig(cfg)
 	cwClient := cloudwatch.NewFromConfig(cfg)
 
 	now := time.Now().UTC()
-	start := now.Add(-efsIdleWindow)
+	window := time.Duration(t.EFSIdleDays) * 24 * time.Hour
+	start := now.Add(-window)
 
 	var results []DeadResource
 	paginator := efs.NewDescribeFileSystemsPaginator(efsClient, &efs.DescribeFileSystemsInput{})
@@ -39,12 +38,14 @@ func (e *EFSScanner) Scan(ctx context.Context, cfg aws.Config, _ config.Threshol
 		for _, fs := range page.FileSystems {
 			id := aws.ToString(fs.FileSystemId)
 
-			io, err := efsMeteredIO(ctx, cwClient, id, start, now)
-			if err != nil {
-				return nil, err
-			}
-			if io > 0 {
-				continue
+			if t.EFSIdleDays > 0 {
+				io, err := efsMeteredIO(ctx, cwClient, id, start, now, window)
+				if err != nil {
+					return nil, err
+				}
+				if io > 0 {
+					continue
+				}
 			}
 
 			tags := make(map[string]string)
@@ -72,7 +73,7 @@ func (e *EFSScanner) Scan(ctx context.Context, cfg aws.Config, _ config.Threshol
 				Name:        name,
 				Region:      cfg.Region,
 				MonthlyCost: sizeGB * 0.30,
-				Reason:      "No IO activity in 7 days",
+				Reason:      idleReason("No IO activity", t.EFSIdleDays),
 				Tags:        tags,
 			})
 		}
@@ -85,7 +86,7 @@ func (e *EFSScanner) EstimateCost(r DeadResource) float64 {
 	return r.MonthlyCost
 }
 
-func efsMeteredIO(ctx context.Context, client *cloudwatch.Client, fsID string, start, end time.Time) (float64, error) {
+func efsMeteredIO(ctx context.Context, client *cloudwatch.Client, fsID string, start, end time.Time, window time.Duration) (float64, error) {
 	stats, err := client.GetMetricStatistics(ctx, &cloudwatch.GetMetricStatisticsInput{
 		Namespace:  aws.String("AWS/EFS"),
 		MetricName: aws.String("MeteredIOBytes"),
@@ -94,7 +95,7 @@ func efsMeteredIO(ctx context.Context, client *cloudwatch.Client, fsID string, s
 		},
 		StartTime:  aws.Time(start),
 		EndTime:    aws.Time(end),
-		Period:     aws.Int32(int32(efsIdleWindow.Seconds())),
+		Period:     aws.Int32(int32(window.Seconds())),
 		Statistics: []cwtypes.Statistic{cwtypes.StatisticSum},
 	})
 	if err != nil {

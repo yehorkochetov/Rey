@@ -13,20 +13,19 @@ import (
 	"github.com/yehorkochetov/rey/internal/config"
 )
 
-const dynamoIdleWindow = 14 * 24 * time.Hour
-
 type DynamoDBScanner struct{}
 
 func (d *DynamoDBScanner) Name() string {
 	return "dynamodb"
 }
 
-func (d *DynamoDBScanner) Scan(ctx context.Context, cfg aws.Config, _ config.Thresholds) ([]DeadResource, error) {
+func (d *DynamoDBScanner) Scan(ctx context.Context, cfg aws.Config, t config.Thresholds) ([]DeadResource, error) {
 	ddbClient := dynamodb.NewFromConfig(cfg)
 	cwClient := cloudwatch.NewFromConfig(cfg)
 
 	now := time.Now().UTC()
-	start := now.Add(-dynamoIdleWindow)
+	window := time.Duration(t.DynamoDBIdleDays) * 24 * time.Hour
+	start := now.Add(-window)
 
 	var results []DeadResource
 	paginator := dynamodb.NewListTablesPaginator(ddbClient, &dynamodb.ListTablesInput{})
@@ -37,16 +36,18 @@ func (d *DynamoDBScanner) Scan(ctx context.Context, cfg aws.Config, _ config.Thr
 		}
 
 		for _, name := range page.TableNames {
-			reads, err := dynamoCapacity(ctx, cwClient, name, "ConsumedReadCapacityUnits", start, now)
-			if err != nil {
-				return nil, err
-			}
-			writes, err := dynamoCapacity(ctx, cwClient, name, "ConsumedWriteCapacityUnits", start, now)
-			if err != nil {
-				return nil, err
-			}
-			if reads > 0 || writes > 0 {
-				continue
+			if t.DynamoDBIdleDays > 0 {
+				reads, err := dynamoCapacity(ctx, cwClient, name, "ConsumedReadCapacityUnits", start, now, window)
+				if err != nil {
+					return nil, err
+				}
+				writes, err := dynamoCapacity(ctx, cwClient, name, "ConsumedWriteCapacityUnits", start, now, window)
+				if err != nil {
+					return nil, err
+				}
+				if reads > 0 || writes > 0 {
+					continue
+				}
 			}
 
 			results = append(results, DeadResource{
@@ -55,7 +56,7 @@ func (d *DynamoDBScanner) Scan(ctx context.Context, cfg aws.Config, _ config.Thr
 				Name:        name,
 				Region:      cfg.Region,
 				MonthlyCost: 0,
-				Reason:      "No reads or writes in 14 days",
+				Reason:      idleReason("No reads or writes", t.DynamoDBIdleDays),
 				Tags:        map[string]string{},
 			})
 		}
@@ -68,7 +69,7 @@ func (d *DynamoDBScanner) EstimateCost(r DeadResource) float64 {
 	return r.MonthlyCost
 }
 
-func dynamoCapacity(ctx context.Context, client *cloudwatch.Client, table, metric string, start, end time.Time) (float64, error) {
+func dynamoCapacity(ctx context.Context, client *cloudwatch.Client, table, metric string, start, end time.Time, window time.Duration) (float64, error) {
 	stats, err := client.GetMetricStatistics(ctx, &cloudwatch.GetMetricStatisticsInput{
 		Namespace:  aws.String("AWS/DynamoDB"),
 		MetricName: aws.String(metric),
@@ -77,7 +78,7 @@ func dynamoCapacity(ctx context.Context, client *cloudwatch.Client, table, metri
 		},
 		StartTime:  aws.Time(start),
 		EndTime:    aws.Time(end),
-		Period:     aws.Int32(int32(dynamoIdleWindow.Seconds())),
+		Period:     aws.Int32(int32(window.Seconds())),
 		Statistics: []cwtypes.Statistic{cwtypes.StatisticSum},
 	})
 	if err != nil {

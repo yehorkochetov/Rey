@@ -14,15 +14,13 @@ import (
 	"github.com/yehorkochetov/rey/internal/config"
 )
 
-const natIdleWindow = 7 * 24 * time.Hour
-
 type NATGatewayScanner struct{}
 
 func (n *NATGatewayScanner) Name() string {
 	return "nat-gateway"
 }
 
-func (n *NATGatewayScanner) Scan(ctx context.Context, cfg aws.Config, _ config.Thresholds) ([]DeadResource, error) {
+func (n *NATGatewayScanner) Scan(ctx context.Context, cfg aws.Config, t config.Thresholds) ([]DeadResource, error) {
 	ec2Client := ec2.NewFromConfig(cfg)
 	cwClient := cloudwatch.NewFromConfig(cfg)
 
@@ -39,18 +37,21 @@ func (n *NATGatewayScanner) Scan(ctx context.Context, cfg aws.Config, _ config.T
 	}
 
 	now := time.Now().UTC()
-	start := now.Add(-natIdleWindow)
+	window := time.Duration(t.NATIdleDays) * 24 * time.Hour
+	start := now.Add(-window)
 
 	var results []DeadResource
 	for _, ng := range out.NatGateways {
 		id := aws.ToString(ng.NatGatewayId)
 
-		bytes, err := natBytesOut(ctx, cwClient, id, start, now)
-		if err != nil {
-			return nil, err
-		}
-		if bytes > 0 {
-			continue
+		if t.NATIdleDays > 0 {
+			bytes, err := natBytesOut(ctx, cwClient, id, start, now, window)
+			if err != nil {
+				return nil, err
+			}
+			if bytes > 0 {
+				continue
+			}
 		}
 
 		tags := make(map[string]string)
@@ -73,7 +74,7 @@ func (n *NATGatewayScanner) Scan(ctx context.Context, cfg aws.Config, _ config.T
 			Name:        name,
 			Region:      cfg.Region,
 			MonthlyCost: 32.40,
-			Reason:      "No traffic processed in 7 days",
+			Reason:      idleReason("No traffic processed", t.NATIdleDays),
 			Tags:        tags,
 		})
 	}
@@ -85,7 +86,7 @@ func (n *NATGatewayScanner) EstimateCost(r DeadResource) float64 {
 	return r.MonthlyCost
 }
 
-func natBytesOut(ctx context.Context, client *cloudwatch.Client, natID string, start, end time.Time) (float64, error) {
+func natBytesOut(ctx context.Context, client *cloudwatch.Client, natID string, start, end time.Time, window time.Duration) (float64, error) {
 	stats, err := client.GetMetricStatistics(ctx, &cloudwatch.GetMetricStatisticsInput{
 		Namespace:  aws.String("AWS/NATGateway"),
 		MetricName: aws.String("BytesOutToDestination"),
@@ -94,7 +95,7 @@ func natBytesOut(ctx context.Context, client *cloudwatch.Client, natID string, s
 		},
 		StartTime:  aws.Time(start),
 		EndTime:    aws.Time(end),
-		Period:     aws.Int32(int32(natIdleWindow.Seconds())),
+		Period:     aws.Int32(int32(window.Seconds())),
 		Statistics: []cwtypes.Statistic{cwtypes.StatisticSum},
 	})
 	if err != nil {

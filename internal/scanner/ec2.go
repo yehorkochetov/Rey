@@ -13,15 +13,14 @@ import (
 	"github.com/yehorkochetov/rey/internal/config"
 )
 
-type EC2Scanner struct {
-	MinAge time.Duration
-}
+type EC2Scanner struct{}
 
 func (e *EC2Scanner) Name() string {
 	return "ec2-stopped"
 }
 
-func (e *EC2Scanner) Scan(ctx context.Context, cfg aws.Config, _ config.Thresholds) ([]DeadResource, error) {
+func (e *EC2Scanner) Scan(ctx context.Context, cfg aws.Config, t config.Thresholds) ([]DeadResource, error) {
+	minAge := time.Duration(t.EC2StoppedDays) * 24 * time.Hour
 	client := ec2.NewFromConfig(cfg)
 
 	out, err := client.DescribeInstances(ctx, &ec2.DescribeInstancesInput{
@@ -45,7 +44,7 @@ func (e *EC2Scanner) Scan(ctx context.Context, cfg aws.Config, _ config.Threshol
 				continue
 			}
 			age := now.Sub(stopTime)
-			if age < e.MinAge {
+			if t.EC2StoppedDays > 0 && age < minAge {
 				continue
 			}
 

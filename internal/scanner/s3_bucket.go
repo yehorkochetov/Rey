@@ -11,15 +11,14 @@ import (
 	"github.com/yehorkochetov/rey/internal/config"
 )
 
-const emptyBucketMinAge = 30 * 24 * time.Hour
-
 type S3BucketScanner struct{}
 
 func (s *S3BucketScanner) Name() string {
 	return "s3-bucket"
 }
 
-func (s *S3BucketScanner) Scan(ctx context.Context, cfg aws.Config, _ config.Thresholds) ([]DeadResource, error) {
+func (s *S3BucketScanner) Scan(ctx context.Context, cfg aws.Config, t config.Thresholds) ([]DeadResource, error) {
+	minAge := time.Duration(t.S3BucketEmptyDays) * 24 * time.Hour
 	client := s3.NewFromConfig(cfg)
 
 	buckets, err := client.ListBuckets(ctx, &s3.ListBucketsInput{})
@@ -32,11 +31,11 @@ func (s *S3BucketScanner) Scan(ctx context.Context, cfg aws.Config, _ config.Thr
 
 	for _, b := range buckets.Buckets {
 		name := aws.ToString(b.Name)
-		if b.CreationDate == nil {
-			continue
+		var age time.Duration
+		if b.CreationDate != nil {
+			age = now.Sub(*b.CreationDate)
 		}
-		age := now.Sub(*b.CreationDate)
-		if age < emptyBucketMinAge {
+		if t.S3BucketEmptyDays > 0 && age < minAge {
 			continue
 		}
 
@@ -66,7 +65,7 @@ func (s *S3BucketScanner) Scan(ctx context.Context, cfg aws.Config, _ config.Thr
 			Region:      cfg.Region,
 			Age:         age,
 			MonthlyCost: 0,
-			Reason:      "Empty bucket older than 30 days",
+			Reason:      emptyBucketReason(t.S3BucketEmptyDays),
 			Tags:        map[string]string{},
 		})
 	}
@@ -76,4 +75,11 @@ func (s *S3BucketScanner) Scan(ctx context.Context, cfg aws.Config, _ config.Thr
 
 func (s *S3BucketScanner) EstimateCost(r DeadResource) float64 {
 	return r.MonthlyCost
+}
+
+func emptyBucketReason(days int) string {
+	if days <= 0 {
+		return "Empty bucket"
+	}
+	return fmt.Sprintf("Empty bucket older than %d days", days)
 }

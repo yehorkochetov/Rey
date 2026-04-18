@@ -3,7 +3,6 @@ package cmd
 import (
 	"fmt"
 	"os"
-	"time"
 
 	"github.com/spf13/cobra"
 	reyaws "github.com/yehorkochetov/rey/internal/aws"
@@ -23,13 +22,10 @@ var digCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		minAgeDays, _ := cmd.Flags().GetInt("min-age")
-		minAge := time.Duration(minAgeDays) * 24 * time.Hour
-
 		reg := &scanner.Registry{}
 		for _, s := range []scanner.Scanner{
 			&scanner.EIPScanner{},
-			&scanner.EC2Scanner{MinAge: minAge},
+			&scanner.EC2Scanner{},
 			&scanner.EBSScanner{},
 			&scanner.SnapshotScanner{},
 			&scanner.SecurityGroupScanner{},
@@ -87,7 +83,6 @@ func resolveThresholds(cmd *cobra.Command) config.Thresholds {
 }
 
 func init() {
-	digCmd.Flags().Int("min-age", 7, "Minimum age in days to consider a resource idle")
 	digCmd.Flags().String("export", "", "Export results to file (e.g. report.csv)")
 
 	digCmd.Flags().Int("ec2-stopped-days", -1, "Flag stopped EC2 instances older than N days (0 = any age)")

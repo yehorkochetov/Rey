@@ -13,20 +13,19 @@ import (
 	"github.com/yehorkochetov/rey/internal/config"
 )
 
-const elastiCacheIdleWindow = 7 * 24 * time.Hour
-
 type ElastiCacheScanner struct{}
 
 func (e *ElastiCacheScanner) Name() string {
 	return "elasticache"
 }
 
-func (e *ElastiCacheScanner) Scan(ctx context.Context, cfg aws.Config, _ config.Thresholds) ([]DeadResource, error) {
+func (e *ElastiCacheScanner) Scan(ctx context.Context, cfg aws.Config, t config.Thresholds) ([]DeadResource, error) {
 	ecClient := elasticache.NewFromConfig(cfg)
 	cwClient := cloudwatch.NewFromConfig(cfg)
 
 	now := time.Now().UTC()
-	start := now.Add(-elastiCacheIdleWindow)
+	window := time.Duration(t.ElastiCacheIdleDays) * 24 * time.Hour
+	start := now.Add(-window)
 
 	var results []DeadResource
 	paginator := elasticache.NewDescribeCacheClustersPaginator(ecClient, &elasticache.DescribeCacheClustersInput{})
@@ -39,12 +38,14 @@ func (e *ElastiCacheScanner) Scan(ctx context.Context, cfg aws.Config, _ config.
 		for _, c := range page.CacheClusters {
 			id := aws.ToString(c.CacheClusterId)
 
-			avg, err := elastiCacheConnections(ctx, cwClient, id, start, now)
-			if err != nil {
-				return nil, err
-			}
-			if avg > 0 {
-				continue
+			if t.ElastiCacheIdleDays > 0 {
+				avg, err := elastiCacheConnections(ctx, cwClient, id, start, now, window)
+				if err != nil {
+					return nil, err
+				}
+				if avg > 0 {
+					continue
+				}
 			}
 
 			results = append(results, DeadResource{
@@ -53,7 +54,7 @@ func (e *ElastiCacheScanner) Scan(ctx context.Context, cfg aws.Config, _ config.
 				Name:        id,
 				Region:      cfg.Region,
 				MonthlyCost: 0,
-				Reason:      "No connections in 7 days",
+				Reason:      idleReason("No connections", t.ElastiCacheIdleDays),
 				Tags:        map[string]string{},
 			})
 		}
@@ -66,7 +67,7 @@ func (e *ElastiCacheScanner) EstimateCost(r DeadResource) float64 {
 	return r.MonthlyCost
 }
 
-func elastiCacheConnections(ctx context.Context, client *cloudwatch.Client, clusterID string, start, end time.Time) (float64, error) {
+func elastiCacheConnections(ctx context.Context, client *cloudwatch.Client, clusterID string, start, end time.Time, window time.Duration) (float64, error) {
 	stats, err := client.GetMetricStatistics(ctx, &cloudwatch.GetMetricStatisticsInput{
 		Namespace:  aws.String("AWS/ElastiCache"),
 		MetricName: aws.String("CurrConnections"),
@@ -75,7 +76,7 @@ func elastiCacheConnections(ctx context.Context, client *cloudwatch.Client, clus
 		},
 		StartTime:  aws.Time(start),
 		EndTime:    aws.Time(end),
-		Period:     aws.Int32(int32(elastiCacheIdleWindow.Seconds())),
+		Period:     aws.Int32(int32(window.Seconds())),
 		Statistics: []cwtypes.Statistic{cwtypes.StatisticAverage},
 	})
 	if err != nil {
