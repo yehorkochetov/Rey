@@ -9,6 +9,8 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatch"
 	cwtypes "github.com/aws/aws-sdk-go-v2/service/cloudwatch/types"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
+
+	"github.com/yehorkochetov/rey/internal/config"
 )
 
 const dynamoIdleWindow = 14 * 24 * time.Hour
@@ -19,7 +21,7 @@ func (d *DynamoDBScanner) Name() string {
 	return "dynamodb"
 }
 
-func (d *DynamoDBScanner) Scan(ctx context.Context, cfg aws.Config) ([]DeadResource, error) {
+func (d *DynamoDBScanner) Scan(ctx context.Context, cfg aws.Config, _ config.Thresholds) ([]DeadResource, error) {
 	ddbClient := dynamodb.NewFromConfig(cfg)
 	cwClient := cloudwatch.NewFromConfig(cfg)
 

@@ -5,6 +5,8 @@ import (
 	"sync"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+
+	"github.com/yehorkochetov/rey/internal/config"
 )
 
 type Registry struct {
@@ -15,7 +17,7 @@ func (r *Registry) Register(s Scanner) {
 	r.scanners = append(r.scanners, s)
 }
 
-func (r *Registry) RunAll(ctx context.Context, cfg aws.Config) ([]DeadResource, error) {
+func (r *Registry) RunAll(ctx context.Context, cfg aws.Config, t config.Thresholds) ([]DeadResource, error) {
 	var (
 		mu      sync.Mutex
 		wg      sync.WaitGroup
@@ -27,7 +29,7 @@ func (r *Registry) RunAll(ctx context.Context, cfg aws.Config) ([]DeadResource, 
 		wg.Add(1)
 		go func(s Scanner) {
 			defer wg.Done()
-			found, err := s.Scan(ctx, cfg)
+			found, err := s.Scan(ctx, cfg, t)
 			mu.Lock()
 			defer mu.Unlock()
 			if err != nil {

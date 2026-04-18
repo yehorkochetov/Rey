@@ -7,6 +7,8 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+
+	"github.com/yehorkochetov/rey/internal/config"
 )
 
 const multipartMaxAge = 7 * 24 * time.Hour
@@ -17,7 +19,7 @@ func (s *S3MultipartScanner) Name() string {
 	return "s3-multipart"
 }
 
-func (s *S3MultipartScanner) Scan(ctx context.Context, cfg aws.Config) ([]DeadResource, error) {
+func (s *S3MultipartScanner) Scan(ctx context.Context, cfg aws.Config, _ config.Thresholds) ([]DeadResource, error) {
 	client := s3.NewFromConfig(cfg)
 
 	buckets, err := client.ListBuckets(ctx, &s3.ListBucketsInput{})

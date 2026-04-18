@@ -5,6 +5,8 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+
+	"github.com/yehorkochetov/rey/internal/config"
 )
 
 // DeadResource represents a single wasted or idle AWS resource.
@@ -23,6 +25,6 @@ type DeadResource struct {
 // Each scanner is responsible for one resource type.
 type Scanner interface {
 	Name() string
-	Scan(ctx context.Context, cfg aws.Config) ([]DeadResource, error)
+	Scan(ctx context.Context, cfg aws.Config, t config.Thresholds) ([]DeadResource, error)
 	EstimateCost(r DeadResource) float64
 }

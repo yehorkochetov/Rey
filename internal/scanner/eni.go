@@ -7,6 +7,8 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
+
+	"github.com/yehorkochetov/rey/internal/config"
 )
 
 type ENIScanner struct{}
@@ -15,7 +17,7 @@ func (e *ENIScanner) Name() string {
 	return "network-interface"
 }
 
-func (e *ENIScanner) Scan(ctx context.Context, cfg aws.Config) ([]DeadResource, error) {
+func (e *ENIScanner) Scan(ctx context.Context, cfg aws.Config, _ config.Thresholds) ([]DeadResource, error) {
 	client := ec2.NewFromConfig(cfg)
 
 	out, err := client.DescribeNetworkInterfaces(ctx, &ec2.DescribeNetworkInterfacesInput{

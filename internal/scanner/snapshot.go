@@ -7,6 +7,8 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
+
+	"github.com/yehorkochetov/rey/internal/config"
 )
 
 const snapshotMaxAge = 90 * 24 * time.Hour
@@ -17,7 +19,7 @@ func (s *SnapshotScanner) Name() string {
 	return "ebs-snapshot"
 }
 
-func (s *SnapshotScanner) Scan(ctx context.Context, cfg aws.Config) ([]DeadResource, error) {
+func (s *SnapshotScanner) Scan(ctx context.Context, cfg aws.Config, _ config.Thresholds) ([]DeadResource, error) {
 	client := ec2.NewFromConfig(cfg)
 
 	images, err := client.DescribeImages(ctx, &ec2.DescribeImagesInput{

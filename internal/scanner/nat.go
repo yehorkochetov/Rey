@@ -10,6 +10,8 @@ import (
 	cwtypes "github.com/aws/aws-sdk-go-v2/service/cloudwatch/types"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
+
+	"github.com/yehorkochetov/rey/internal/config"
 )
 
 const natIdleWindow = 7 * 24 * time.Hour
@@ -20,7 +22,7 @@ func (n *NATGatewayScanner) Name() string {
 	return "nat-gateway"
 }
 
-func (n *NATGatewayScanner) Scan(ctx context.Context, cfg aws.Config) ([]DeadResource, error) {
+func (n *NATGatewayScanner) Scan(ctx context.Context, cfg aws.Config, _ config.Thresholds) ([]DeadResource, error) {
 	ec2Client := ec2.NewFromConfig(cfg)
 	cwClient := cloudwatch.NewFromConfig(cfg)
 

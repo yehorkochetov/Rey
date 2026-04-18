@@ -7,6 +7,8 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
+
+	"github.com/yehorkochetov/rey/internal/config"
 )
 
 type IGWScanner struct{}
@@ -15,7 +17,7 @@ func (i *IGWScanner) Name() string {
 	return "internet-gateway"
 }
 
-func (i *IGWScanner) Scan(ctx context.Context, cfg aws.Config) ([]DeadResource, error) {
+func (i *IGWScanner) Scan(ctx context.Context, cfg aws.Config, _ config.Thresholds) ([]DeadResource, error) {
 	client := ec2.NewFromConfig(cfg)
 
 	out, err := client.DescribeInternetGateways(ctx, &ec2.DescribeInternetGatewaysInput{})

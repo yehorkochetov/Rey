@@ -9,6 +9,8 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
+
+	"github.com/yehorkochetov/rey/internal/config"
 )
 
 type EC2Scanner struct {
@@ -19,7 +21,7 @@ func (e *EC2Scanner) Name() string {
 	return "ec2-stopped"
 }
 
-func (e *EC2Scanner) Scan(ctx context.Context, cfg aws.Config) ([]DeadResource, error) {
+func (e *EC2Scanner) Scan(ctx context.Context, cfg aws.Config, _ config.Thresholds) ([]DeadResource, error) {
 	client := ec2.NewFromConfig(cfg)
 
 	out, err := client.DescribeInstances(ctx, &ec2.DescribeInstancesInput{

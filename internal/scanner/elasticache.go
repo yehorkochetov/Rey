@@ -9,6 +9,8 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatch"
 	cwtypes "github.com/aws/aws-sdk-go-v2/service/cloudwatch/types"
 	"github.com/aws/aws-sdk-go-v2/service/elasticache"
+
+	"github.com/yehorkochetov/rey/internal/config"
 )
 
 const elastiCacheIdleWindow = 7 * 24 * time.Hour
@@ -19,7 +21,7 @@ func (e *ElastiCacheScanner) Name() string {
 	return "elasticache"
 }
 
-func (e *ElastiCacheScanner) Scan(ctx context.Context, cfg aws.Config) ([]DeadResource, error) {
+func (e *ElastiCacheScanner) Scan(ctx context.Context, cfg aws.Config, _ config.Thresholds) ([]DeadResource, error) {
 	ecClient := elasticache.NewFromConfig(cfg)
 	cwClient := cloudwatch.NewFromConfig(cfg)
 

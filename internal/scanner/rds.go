@@ -6,6 +6,8 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/rds"
+
+	"github.com/yehorkochetov/rey/internal/config"
 )
 
 type RDSScanner struct{}
@@ -14,7 +16,7 @@ func (r *RDSScanner) Name() string {
 	return "rds-instance"
 }
 
-func (r *RDSScanner) Scan(ctx context.Context, cfg aws.Config) ([]DeadResource, error) {
+func (r *RDSScanner) Scan(ctx context.Context, cfg aws.Config, _ config.Thresholds) ([]DeadResource, error) {
 	client := rds.NewFromConfig(cfg)
 
 	var results []DeadResource

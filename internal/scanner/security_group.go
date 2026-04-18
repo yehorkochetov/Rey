@@ -6,6 +6,8 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
+
+	"github.com/yehorkochetov/rey/internal/config"
 )
 
 type SecurityGroupScanner struct{}
@@ -14,7 +16,7 @@ func (s *SecurityGroupScanner) Name() string {
 	return "security-group"
 }
 
-func (s *SecurityGroupScanner) Scan(ctx context.Context, cfg aws.Config) ([]DeadResource, error) {
+func (s *SecurityGroupScanner) Scan(ctx context.Context, cfg aws.Config, _ config.Thresholds) ([]DeadResource, error) {
 	client := ec2.NewFromConfig(cfg)
 
 	groups, err := client.DescribeSecurityGroups(ctx, &ec2.DescribeSecurityGroupsInput{})

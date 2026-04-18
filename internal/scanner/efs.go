@@ -9,6 +9,8 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatch"
 	cwtypes "github.com/aws/aws-sdk-go-v2/service/cloudwatch/types"
 	"github.com/aws/aws-sdk-go-v2/service/efs"
+
+	"github.com/yehorkochetov/rey/internal/config"
 )
 
 const efsIdleWindow = 7 * 24 * time.Hour
@@ -19,7 +21,7 @@ func (e *EFSScanner) Name() string {
 	return "efs"
 }
 
-func (e *EFSScanner) Scan(ctx context.Context, cfg aws.Config) ([]DeadResource, error) {
+func (e *EFSScanner) Scan(ctx context.Context, cfg aws.Config, _ config.Thresholds) ([]DeadResource, error) {
 	efsClient := efs.NewFromConfig(cfg)
 	cwClient := cloudwatch.NewFromConfig(cfg)
 

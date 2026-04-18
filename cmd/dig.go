@@ -49,7 +49,9 @@ var digCmd = &cobra.Command{
 			reg.Register(s)
 		}
 
-		results, err := reg.RunAll(cmd.Context(), cfg)
+		thresholds := resolveThresholds(cmd)
+
+		results, err := reg.RunAll(cmd.Context(), cfg, thresholds)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "Error:", err)
 			os.Exit(1)

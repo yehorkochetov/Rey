@@ -7,6 +7,8 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/rds"
+
+	"github.com/yehorkochetov/rey/internal/config"
 )
 
 const rdsSnapshotMaxAge = 90 * 24 * time.Hour
@@ -17,7 +19,7 @@ func (s *RDSSnapshotScanner) Name() string {
 	return "rds-snapshot"
 }
 
-func (s *RDSSnapshotScanner) Scan(ctx context.Context, cfg aws.Config) ([]DeadResource, error) {
+func (s *RDSSnapshotScanner) Scan(ctx context.Context, cfg aws.Config, _ config.Thresholds) ([]DeadResource, error) {
 	client := rds.NewFromConfig(cfg)
 
 	now := time.Now().UTC()

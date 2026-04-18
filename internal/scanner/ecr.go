@@ -7,6 +7,8 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ecr"
+
+	"github.com/yehorkochetov/rey/internal/config"
 )
 
 const ecrImageMaxAge = 180 * 24 * time.Hour
@@ -17,7 +19,7 @@ func (e *ECRScanner) Name() string {
 	return "ecr-image"
 }
 
-func (e *ECRScanner) Scan(ctx context.Context, cfg aws.Config) ([]DeadResource, error) {
+func (e *ECRScanner) Scan(ctx context.Context, cfg aws.Config, _ config.Thresholds) ([]DeadResource, error) {
 	client := ecr.NewFromConfig(cfg)
 
 	now := time.Now().UTC()
