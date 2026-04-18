@@ -40,6 +40,10 @@ var digCmd = &cobra.Command{
 			&scanner.RDSSnapshotScanner{},
 			&scanner.ElastiCacheScanner{},
 			&scanner.DynamoDBScanner{},
+			&scanner.S3MultipartScanner{},
+			&scanner.S3BucketScanner{},
+			&scanner.ECRScanner{},
+			&scanner.EFSScanner{},
 		} {
 			reg.Register(s)
 		}
