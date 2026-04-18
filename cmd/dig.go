@@ -36,6 +36,10 @@ var digCmd = &cobra.Command{
 			&scanner.IGWScanner{},
 			&scanner.NATGatewayScanner{},
 			&scanner.VPCEndpointScanner{},
+			&scanner.RDSScanner{},
+			&scanner.RDSSnapshotScanner{},
+			&scanner.ElastiCacheScanner{},
+			&scanner.DynamoDBScanner{},
 		} {
 			reg.Register(s)
 		}
