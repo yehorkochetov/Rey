@@ -22,6 +22,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/dynamodb v1.57.2 // indirect
 	github.com/aws/aws-sdk-go-v2/service/ec2 v1.296.2 // indirect
 	github.com/aws/aws-sdk-go-v2/service/ecr v1.57.1 // indirect
+	github.com/aws/aws-sdk-go-v2/service/efs v1.41.15 // indirect
 	github.com/aws/aws-sdk-go-v2/service/elasticache v1.52.1 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding v1.13.8 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/checksum v1.9.14 // indirect
