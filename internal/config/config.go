@@ -45,6 +45,15 @@ func Init() {
 	viper.AutomaticEnv()
 
 	_ = viper.ReadInConfig()
+
+	// Keys nested under [defaults] in config.toml act as fallbacks for
+	// the top-level keys the CLI binds against. SetDefault sits below
+	// flags and env, so an explicit --profile still wins.
+	for _, k := range []string{"region", "profile", "output"} {
+		if v := viper.GetString("defaults." + k); v != "" {
+			viper.SetDefault(k, v)
+		}
+	}
 }
 
 func BindFlags(cmd *cobra.Command) {
