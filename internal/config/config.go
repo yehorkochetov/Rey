@@ -8,6 +8,31 @@ import (
 	"github.com/spf13/viper"
 )
 
+// ExampleConfigTOML is the documented schema for ~/.rey/config.toml.
+// Users can drop this into the file to override per-scanner thresholds;
+// any key omitted falls back to DefaultThresholds().
+const ExampleConfigTOML = `# ~/.rey/config.toml — rey configuration
+
+region  = "us-east-1"
+profile = ""
+output  = "table"
+
+# Per-scanner thresholds in days. Zero means "flag every matching
+# resource regardless of age" — never treat zero as missing.
+[thresholds]
+ec2_stopped_days      = 7
+ebs_unattached_days   = 0
+snapshot_age_days     = 90
+dynamodb_idle_days    = 14
+elasticache_idle_days = 7
+nat_idle_days         = 7
+s3_multipart_days     = 7
+s3_bucket_empty_days  = 30
+ecr_image_age_days    = 180
+efs_idle_days         = 7
+cloudwatch_idle_days  = 30
+`
+
 func Init() {
 	home, _ := os.UserHomeDir()
 	configDir := filepath.Join(home, ".rey")
