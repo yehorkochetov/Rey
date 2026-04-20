@@ -61,25 +61,25 @@ var digCmd = &cobra.Command{
 // defaults -> config.toml -> CLI flags. A flag value of -1 means
 // the user did not set it; 0 is a deliberate "no age check".
 func resolveThresholds(cmd *cobra.Command) config.Thresholds {
-	t := config.LoadThresholds()
-	apply := func(flag string, dst *int) {
-		v, err := cmd.Flags().GetInt(flag)
-		if err != nil || v == -1 {
-			return
-		}
-		*dst = v
+	names := []string{
+		"ec2-stopped-days",
+		"ebs-unattached-days",
+		"snapshot-age-days",
+		"dynamodb-idle-days",
+		"elasticache-idle-days",
+		"nat-idle-days",
+		"s3-multipart-days",
+		"s3-bucket-empty-days",
+		"ecr-image-age-days",
+		"efs-idle-days",
 	}
-	apply("ec2-stopped-days", &t.EC2StoppedDays)
-	apply("ebs-unattached-days", &t.EBSUnattachedDays)
-	apply("snapshot-age-days", &t.SnapshotAgeDays)
-	apply("dynamodb-idle-days", &t.DynamoDBIdleDays)
-	apply("elasticache-idle-days", &t.ElastiCacheIdleDays)
-	apply("nat-idle-days", &t.NATIdleDays)
-	apply("s3-multipart-days", &t.S3MultipartDays)
-	apply("s3-bucket-empty-days", &t.S3BucketEmptyDays)
-	apply("ecr-image-age-days", &t.ECRImageAgeDays)
-	apply("efs-idle-days", &t.EFSIdleDays)
-	return t
+	flags := make(map[string]int, len(names))
+	for _, n := range names {
+		if v, err := cmd.Flags().GetInt(n); err == nil {
+			flags[n] = v
+		}
+	}
+	return config.ResolveThresholds(config.LoadThresholds(), flags)
 }
 
 func init() {
