@@ -10,9 +10,9 @@ import (
 	cwtypes "github.com/aws/aws-sdk-go-v2/service/cloudwatch/types"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
-)
 
-const natIdleWindow = 7 * 24 * time.Hour
+	"github.com/yehorkochetov/rey/internal/config"
+)
 
 type NATGatewayScanner struct{}
 
@@ -20,7 +20,7 @@ func (n *NATGatewayScanner) Name() string {
 	return "nat-gateway"
 }
 
-func (n *NATGatewayScanner) Scan(ctx context.Context, cfg aws.Config) ([]DeadResource, error) {
+func (n *NATGatewayScanner) Scan(ctx context.Context, cfg aws.Config, t config.Thresholds) ([]DeadResource, error) {
 	ec2Client := ec2.NewFromConfig(cfg)
 	cwClient := cloudwatch.NewFromConfig(cfg)
 
@@ -37,18 +37,21 @@ func (n *NATGatewayScanner) Scan(ctx context.Context, cfg aws.Config) ([]DeadRes
 	}
 
 	now := time.Now().UTC()
-	start := now.Add(-natIdleWindow)
+	window := time.Duration(t.NATIdleDays) * 24 * time.Hour
+	start := now.Add(-window)
 
 	var results []DeadResource
 	for _, ng := range out.NatGateways {
 		id := aws.ToString(ng.NatGatewayId)
 
-		bytes, err := natBytesOut(ctx, cwClient, id, start, now)
-		if err != nil {
-			return nil, err
-		}
-		if bytes > 0 {
-			continue
+		if t.NATIdleDays > 0 {
+			bytes, err := natBytesOut(ctx, cwClient, id, start, now, window)
+			if err != nil {
+				return nil, err
+			}
+			if bytes > 0 {
+				continue
+			}
 		}
 
 		tags := make(map[string]string)
@@ -71,7 +74,7 @@ func (n *NATGatewayScanner) Scan(ctx context.Context, cfg aws.Config) ([]DeadRes
 			Name:        name,
 			Region:      cfg.Region,
 			MonthlyCost: 32.40,
-			Reason:      "No traffic processed in 7 days",
+			Reason:      idleReason("No traffic processed", t.NATIdleDays),
 			Tags:        tags,
 		})
 	}
@@ -83,7 +86,7 @@ func (n *NATGatewayScanner) EstimateCost(r DeadResource) float64 {
 	return r.MonthlyCost
 }
 
-func natBytesOut(ctx context.Context, client *cloudwatch.Client, natID string, start, end time.Time) (float64, error) {
+func natBytesOut(ctx context.Context, client *cloudwatch.Client, natID string, start, end time.Time, window time.Duration) (float64, error) {
 	stats, err := client.GetMetricStatistics(ctx, &cloudwatch.GetMetricStatisticsInput{
 		Namespace:  aws.String("AWS/NATGateway"),
 		MetricName: aws.String("BytesOutToDestination"),
@@ -92,7 +95,7 @@ func natBytesOut(ctx context.Context, client *cloudwatch.Client, natID string, s
 		},
 		StartTime:  aws.Time(start),
 		EndTime:    aws.Time(end),
-		Period:     aws.Int32(int32(natIdleWindow.Seconds())),
+		Period:     aws.Int32(int32(window.Seconds())),
 		Statistics: []cwtypes.Statistic{cwtypes.StatisticSum},
 	})
 	if err != nil {

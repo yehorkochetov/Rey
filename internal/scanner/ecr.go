@@ -7,9 +7,9 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ecr"
-)
 
-const ecrImageMaxAge = 180 * 24 * time.Hour
+	"github.com/yehorkochetov/rey/internal/config"
+)
 
 type ECRScanner struct{}
 
@@ -17,7 +17,8 @@ func (e *ECRScanner) Name() string {
 	return "ecr-image"
 }
 
-func (e *ECRScanner) Scan(ctx context.Context, cfg aws.Config) ([]DeadResource, error) {
+func (e *ECRScanner) Scan(ctx context.Context, cfg aws.Config, t config.Thresholds) ([]DeadResource, error) {
+	minAge := time.Duration(t.ECRImageAgeDays) * 24 * time.Hour
 	client := ecr.NewFromConfig(cfg)
 
 	now := time.Now().UTC()
@@ -47,7 +48,7 @@ func (e *ECRScanner) Scan(ctx context.Context, cfg aws.Config) ([]DeadResource, 
 						continue
 					}
 					age := now.Sub(*img.ImagePushedAt)
-					if age < ecrImageMaxAge {
+					if t.ECRImageAgeDays > 0 && age < minAge {
 						continue
 					}
 					if hasLatestTag(img.ImageTags) {
@@ -72,7 +73,7 @@ func (e *ECRScanner) Scan(ctx context.Context, cfg aws.Config) ([]DeadResource, 
 						Region:      cfg.Region,
 						Age:         age,
 						MonthlyCost: sizeGB * 0.10,
-						Reason:      "Untagged ECR image older than 180 days",
+						Reason:      ecrImageReason(t.ECRImageAgeDays),
 						Tags:        map[string]string{},
 					})
 				}
@@ -85,6 +86,13 @@ func (e *ECRScanner) Scan(ctx context.Context, cfg aws.Config) ([]DeadResource, 
 
 func (e *ECRScanner) EstimateCost(r DeadResource) float64 {
 	return r.MonthlyCost
+}
+
+func ecrImageReason(days int) string {
+	if days <= 0 {
+		return "Untagged ECR image"
+	}
+	return fmt.Sprintf("Untagged ECR image older than %d days", days)
 }
 
 func hasLatestTag(tags []string) bool {

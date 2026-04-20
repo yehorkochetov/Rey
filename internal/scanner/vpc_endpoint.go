@@ -7,6 +7,8 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
+
+	"github.com/yehorkochetov/rey/internal/config"
 )
 
 type VPCEndpointScanner struct{}
@@ -15,7 +17,7 @@ func (v *VPCEndpointScanner) Name() string {
 	return "vpc-endpoint"
 }
 
-func (v *VPCEndpointScanner) Scan(ctx context.Context, cfg aws.Config) ([]DeadResource, error) {
+func (v *VPCEndpointScanner) Scan(ctx context.Context, cfg aws.Config, _ config.Thresholds) ([]DeadResource, error) {
 	client := ec2.NewFromConfig(cfg)
 
 	out, err := client.DescribeVpcEndpoints(ctx, &ec2.DescribeVpcEndpointsInput{

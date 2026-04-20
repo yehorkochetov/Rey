@@ -7,9 +7,9 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
-)
 
-const multipartMaxAge = 7 * 24 * time.Hour
+	"github.com/yehorkochetov/rey/internal/config"
+)
 
 type S3MultipartScanner struct{}
 
@@ -17,7 +17,8 @@ func (s *S3MultipartScanner) Name() string {
 	return "s3-multipart"
 }
 
-func (s *S3MultipartScanner) Scan(ctx context.Context, cfg aws.Config) ([]DeadResource, error) {
+func (s *S3MultipartScanner) Scan(ctx context.Context, cfg aws.Config, t config.Thresholds) ([]DeadResource, error) {
+	minAge := time.Duration(t.S3MultipartDays) * 24 * time.Hour
 	client := s3.NewFromConfig(cfg)
 
 	buckets, err := client.ListBuckets(ctx, &s3.ListBucketsInput{})
@@ -53,7 +54,7 @@ func (s *S3MultipartScanner) Scan(ctx context.Context, cfg aws.Config) ([]DeadRe
 					continue
 				}
 				age := now.Sub(*up.Initiated)
-				if age < multipartMaxAge {
+				if t.S3MultipartDays > 0 && age < minAge {
 					continue
 				}
 
@@ -73,7 +74,7 @@ func (s *S3MultipartScanner) Scan(ctx context.Context, cfg aws.Config) ([]DeadRe
 					Region:      cfg.Region,
 					Age:         age,
 					MonthlyCost: sizeGB * 0.023,
-					Reason:      "Incomplete multipart upload older than 7 days",
+					Reason:      multipartReason(t.S3MultipartDays),
 					Tags:        map[string]string{},
 				})
 			}
@@ -85,6 +86,13 @@ func (s *S3MultipartScanner) Scan(ctx context.Context, cfg aws.Config) ([]DeadRe
 
 func (s *S3MultipartScanner) EstimateCost(r DeadResource) float64 {
 	return r.MonthlyCost
+}
+
+func multipartReason(days int) string {
+	if days <= 0 {
+		return "Incomplete multipart upload"
+	}
+	return fmt.Sprintf("Incomplete multipart upload older than %d days", days)
 }
 
 func bucketRegion(ctx context.Context, client *s3.Client, bucket string) (string, error) {

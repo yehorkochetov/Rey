@@ -7,9 +7,9 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
-)
 
-const snapshotMaxAge = 90 * 24 * time.Hour
+	"github.com/yehorkochetov/rey/internal/config"
+)
 
 type SnapshotScanner struct{}
 
@@ -17,7 +17,8 @@ func (s *SnapshotScanner) Name() string {
 	return "ebs-snapshot"
 }
 
-func (s *SnapshotScanner) Scan(ctx context.Context, cfg aws.Config) ([]DeadResource, error) {
+func (s *SnapshotScanner) Scan(ctx context.Context, cfg aws.Config, t config.Thresholds) ([]DeadResource, error) {
+	minAge := time.Duration(t.SnapshotAgeDays) * 24 * time.Hour
 	client := ec2.NewFromConfig(cfg)
 
 	images, err := client.DescribeImages(ctx, &ec2.DescribeImagesInput{
@@ -55,7 +56,7 @@ func (s *SnapshotScanner) Scan(ctx context.Context, cfg aws.Config) ([]DeadResou
 			continue
 		}
 		age := now.Sub(*snap.StartTime)
-		if age < snapshotMaxAge {
+		if t.SnapshotAgeDays > 0 && age < minAge {
 			continue
 		}
 
@@ -74,7 +75,7 @@ func (s *SnapshotScanner) Scan(ctx context.Context, cfg aws.Config) ([]DeadResou
 			Region:      cfg.Region,
 			Age:         age,
 			MonthlyCost: float64(size) * 0.05,
-			Reason:      "Snapshot older than 90 days with no AMI reference",
+			Reason:      snapshotReason(t.SnapshotAgeDays),
 			Tags:        tags,
 		})
 	}
@@ -84,4 +85,11 @@ func (s *SnapshotScanner) Scan(ctx context.Context, cfg aws.Config) ([]DeadResou
 
 func (s *SnapshotScanner) EstimateCost(r DeadResource) float64 {
 	return r.MonthlyCost
+}
+
+func snapshotReason(days int) string {
+	if days <= 0 {
+		return "Snapshot with no AMI reference"
+	}
+	return fmt.Sprintf("Snapshot older than %d days with no AMI reference", days)
 }

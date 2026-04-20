@@ -8,6 +8,8 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
+
+	"github.com/yehorkochetov/rey/internal/config"
 )
 
 type EBSScanner struct{}
@@ -16,7 +18,7 @@ func (e *EBSScanner) Name() string {
 	return "ebs-volume"
 }
 
-func (e *EBSScanner) Scan(ctx context.Context, cfg aws.Config) ([]DeadResource, error) {
+func (e *EBSScanner) Scan(ctx context.Context, cfg aws.Config, t config.Thresholds) ([]DeadResource, error) {
 	client := ec2.NewFromConfig(cfg)
 
 	out, err := client.DescribeVolumes(ctx, &ec2.DescribeVolumesInput{
@@ -31,12 +33,16 @@ func (e *EBSScanner) Scan(ctx context.Context, cfg aws.Config) ([]DeadResource, 
 		return nil, fmt.Errorf("describe volumes: %w", err)
 	}
 
+	minAge := time.Duration(t.EBSUnattachedDays) * 24 * time.Hour
 	var results []DeadResource
 	now := time.Now().UTC()
 	for _, v := range out.Volumes {
 		var age time.Duration
 		if v.CreateTime != nil {
 			age = now.Sub(*v.CreateTime)
+		}
+		if t.EBSUnattachedDays > 0 && age < minAge {
+			continue
 		}
 
 		tags := make(map[string]string)

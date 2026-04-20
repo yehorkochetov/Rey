@@ -6,6 +6,8 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
+
+	"github.com/yehorkochetov/rey/internal/config"
 )
 
 type EIPScanner struct{}
@@ -14,7 +16,7 @@ func (e *EIPScanner) Name() string {
 	return "elastic-ip"
 }
 
-func (e *EIPScanner) Scan(ctx context.Context, cfg aws.Config) ([]DeadResource, error) {
+func (e *EIPScanner) Scan(ctx context.Context, cfg aws.Config, _ config.Thresholds) ([]DeadResource, error) {
 	client := ec2.NewFromConfig(cfg)
 
 	out, err := client.DescribeAddresses(ctx, &ec2.DescribeAddressesInput{})
