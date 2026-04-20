@@ -20,7 +20,6 @@ func (e *EC2Scanner) Name() string {
 }
 
 func (e *EC2Scanner) Scan(ctx context.Context, cfg aws.Config, t config.Thresholds) ([]DeadResource, error) {
-	minAge := time.Duration(t.EC2StoppedDays) * 24 * time.Hour
 	client := ec2.NewFromConfig(cfg)
 
 	out, err := client.DescribeInstances(ctx, &ec2.DescribeInstancesInput{
@@ -35,49 +34,63 @@ func (e *EC2Scanner) Scan(ctx context.Context, cfg aws.Config, t config.Threshol
 		return nil, fmt.Errorf("describe instances: %w", err)
 	}
 
-	var results []DeadResource
 	now := time.Now().UTC()
+	var results []DeadResource
 	for _, res := range out.Reservations {
 		for _, inst := range res.Instances {
-			stopTime, ok := parseStopTime(aws.ToString(inst.StateTransitionReason))
-			if !ok {
-				continue
+			if r, ok := considerEC2Instance(inst, now, t, cfg.Region); ok {
+				results = append(results, r)
 			}
-			age := now.Sub(stopTime)
-			if t.EC2StoppedDays > 0 && age < minAge {
-				continue
-			}
+		}
+	}
+	return results, nil
+}
 
-			tags := make(map[string]string)
-			var name string
-			for _, t := range inst.Tags {
-				k := aws.ToString(t.Key)
-				v := aws.ToString(t.Value)
-				tags[k] = v
-				if k == "Name" {
-					name = v
-				}
-			}
-			id := aws.ToString(inst.InstanceId)
-			if name == "" {
-				name = id
-			}
-			days := int(age.Hours() / 24)
-
-			results = append(results, DeadResource{
-				Type:        "EC2Instance",
-				ID:          id,
-				Name:        name,
-				Region:      cfg.Region,
-				Age:         age,
-				MonthlyCost: 0,
-				Reason:      fmt.Sprintf("Stopped for %d days, attached EBS still charging", days),
-				Tags:        tags,
-			})
+// considerEC2Instance decides whether a single instance should be flagged.
+// Only stopped instances with a parseable stop timestamp qualify; any other
+// state is skipped even if callers forget to apply the API-level filter.
+func considerEC2Instance(inst ec2types.Instance, now time.Time, t config.Thresholds, region string) (DeadResource, bool) {
+	if inst.State == nil || inst.State.Name != ec2types.InstanceStateNameStopped {
+		return DeadResource{}, false
+	}
+	stopTime, ok := parseStopTime(aws.ToString(inst.StateTransitionReason))
+	if !ok {
+		return DeadResource{}, false
+	}
+	age := now.Sub(stopTime)
+	if t.EC2StoppedDays > 0 {
+		minAge := time.Duration(t.EC2StoppedDays) * 24 * time.Hour
+		if age < minAge {
+			return DeadResource{}, false
 		}
 	}
 
-	return results, nil
+	tags := make(map[string]string)
+	var name string
+	for _, tag := range inst.Tags {
+		k := aws.ToString(tag.Key)
+		v := aws.ToString(tag.Value)
+		tags[k] = v
+		if k == "Name" {
+			name = v
+		}
+	}
+	id := aws.ToString(inst.InstanceId)
+	if name == "" {
+		name = id
+	}
+	days := int(age.Hours() / 24)
+
+	return DeadResource{
+		Type:        "EC2Instance",
+		ID:          id,
+		Name:        name,
+		Region:      region,
+		Age:         age,
+		MonthlyCost: 0,
+		Reason:      fmt.Sprintf("Stopped for %d days, attached EBS still charging", days),
+		Tags:        tags,
+	}, true
 }
 
 func (e *EC2Scanner) EstimateCost(r DeadResource) float64 {

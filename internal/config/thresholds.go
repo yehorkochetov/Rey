@@ -32,3 +32,29 @@ func DefaultThresholds() Thresholds {
 		CloudWatchIdleDays:  30,
 	}
 }
+
+// ResolveThresholds layers CLI flag values on top of the config-loaded base.
+// A flag value of -1 means the user did not set it, so the base wins; any
+// other value — including 0 — replaces the base.
+func ResolveThresholds(base Thresholds, flags map[string]int) Thresholds {
+	t := base
+	apply := func(name string, dst *int) {
+		v, ok := flags[name]
+		if !ok || v == -1 {
+			return
+		}
+		*dst = v
+	}
+	apply("ec2-stopped-days", &t.EC2StoppedDays)
+	apply("ebs-unattached-days", &t.EBSUnattachedDays)
+	apply("snapshot-age-days", &t.SnapshotAgeDays)
+	apply("dynamodb-idle-days", &t.DynamoDBIdleDays)
+	apply("elasticache-idle-days", &t.ElastiCacheIdleDays)
+	apply("nat-idle-days", &t.NATIdleDays)
+	apply("s3-multipart-days", &t.S3MultipartDays)
+	apply("s3-bucket-empty-days", &t.S3BucketEmptyDays)
+	apply("ecr-image-age-days", &t.ECRImageAgeDays)
+	apply("efs-idle-days", &t.EFSIdleDays)
+	apply("cloudwatch-idle-days", &t.CloudWatchIdleDays)
+	return t
+}

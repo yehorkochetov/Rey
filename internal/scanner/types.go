@@ -39,3 +39,30 @@ func idleReason(prefix string, days int) string {
 	}
 	return fmt.Sprintf("%s in %d days", prefix, days)
 }
+
+// FormatAge renders Age as a human-readable duration — days when the age
+// exceeds 24h, hours otherwise. Singular/plural units are honored so the
+// CLI shows "1 day" rather than "1 days". A zero or negative Age returns
+// "-" so the table doesn't show a meaningless "0 hours".
+func (r DeadResource) FormatAge() string {
+	if r.Age <= 0 {
+		return "-"
+	}
+	days := int(r.Age.Hours() / 24)
+	if days >= 1 {
+		if days == 1 {
+			return "1 day"
+		}
+		return fmt.Sprintf("%d days", days)
+	}
+	hours := int(r.Age.Hours())
+	if hours == 1 {
+		return "1 hour"
+	}
+	return fmt.Sprintf("%d hours", hours)
+}
+
+// FormatCost renders MonthlyCost as "$X.XX".
+func (r DeadResource) FormatCost() string {
+	return fmt.Sprintf("$%.2f", r.MonthlyCost)
+}
